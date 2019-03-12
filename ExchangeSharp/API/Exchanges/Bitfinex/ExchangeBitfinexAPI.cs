@@ -63,6 +63,8 @@ namespace ExchangeSharp
             };
 
             MarketSymbolSeparator = string.Empty;
+            WebSocketOrderBookType = WebSocketOrderBookType.FullBookFirstThenDeltas;
+
         }
 
         public string NormalizeMarketSymbolV1(string marketSymbol)
@@ -301,6 +303,181 @@ namespace ExchangeSharp
                     await _socket.SendMessageAsync(new { @event = "subscribe", channel = "trades", symbol = marketSymbol });
                 }
             });
+        }
+        protected override IWebSocket OnGetOrderBookWebSocket(Action<ExchangeOrderBook> callback, int maxCount = 20, params string[] marketSymbols)
+        {
+            Dictionary<int, string> channelIdToSymbol = new Dictionary<int, string>();
+            if (marketSymbols == null || marketSymbols.Length == 0)
+            {
+                marketSymbols = GetMarketSymbolsAsync().Sync().ToArray();
+            }
+            return ConnectWebSocket("/2", (_socket, msg) => //use websocket V2 (beta, but millisecond timestamp)
+            {
+                string msgstr = msg.ToStringFromUTF8();
+                JToken token = JToken.Parse(msg.ToStringFromUTF8());
+                if (token is JArray array)
+                {
+                    if (channelIdToSymbol.TryGetValue(array[0].ConvertInvariant<int>(), out string symbol))
+                    {
+                    }
+                    var price = 0m;
+                    var size = 0m;
+                    var dataArray = (JArray)token[1];
+                    if (dataArray[0].Type == JTokenType.Array)
+                    {
+                        //HandleData("Book snapshot", dataArray, handler);
+                        ExchangeOrderBook book = new ExchangeOrderBook();
+                        book.MarketSymbol = symbol;
+                        JArray snapshot = (JArray) dataArray;
+                        for (int i = 0; i < snapshot.Count; i++)
+                        {
+                            JArray tok = (JArray)snapshot[i];
+                            price = (decimal)tok[0];
+                            size = Math.Abs((decimal)tok[2]);
+                            var depth = new ExchangeOrderPrice { Price = price, Amount = size };
+                            if ((decimal)tok[2]>0m)
+                            {
+                                book.Bids[depth.Price] = depth;
+                            }
+                            else
+                            {
+                                book.Asks[depth.Price] = depth;
+                            }
+                        }
+                        /*
+                        var depth = new ExchangeOrderPrice { Price = price, Amount = size };
+
+                        if (side.EqualsWithOption("Buy"))
+                        {
+                            book.Bids[depth.Price] = depth;
+                        }
+                        else
+                        {
+                            book.Asks[depth.Price] = depth;
+                        }
+                        */
+                        callback(book);
+                    }
+                    else
+                    {
+                        //HandleSingleToArrayData("Book update", dataArray, handler);
+                        ExchangeOrderBook book = new ExchangeOrderBook();
+                        book.MarketSymbol = symbol;
+                        var tok = dataArray;
+                        price = (decimal)tok[0];
+                        size = Math.Abs((decimal)tok[2]);
+                        var depth = new ExchangeOrderPrice { Price = price, Amount = size };
+                        if ((decimal)tok[2] > 0m)
+                        {
+                            book.Bids[depth.Price] = depth;
+                        }
+                        else
+                        {
+                            book.Asks[depth.Price] = depth;
+                        }
+                        callback(book);
+                    }
+                    return Task.CompletedTask;
+                }
+                else if (token["event"].ToStringInvariant() == "subscribed" && token["channel"].ToStringInvariant() == "book")
+                {
+                    //{"event": "subscribed","channel": "trades","chanId": 29654,"symbol": "tBTCUSD","pair": "BTCUSD"}
+                    int channelId = token["chanId"].ConvertInvariant<int>();
+                    channelIdToSymbol[channelId] = token["pair"].ToStringInvariant();
+                }
+                return Task.CompletedTask;
+            }, async (_socket) =>
+            {
+                foreach (var marketSymbol in marketSymbols)
+                {
+                    await _socket.SendMessageAsync(new { @event = "subscribe", channel = "book", symbol = marketSymbol, prec = "P1" }); // RO is difficult to parse
+                }
+            }, async (_socket) =>
+            {
+                Console.WriteLine("Socket disconnected bitfinex unimplmented");
+            });
+            /*
+{"info":"Welcome to the BitMEX Realtime API.","version":"2018-06-29T18:05:14.000Z","timestamp":"2018-07-05T14:22:26.267Z","docs":"https://www.bitmex.com/app/wsAPI","limit":{"remaining":39}}
+{"success":true,"subscribe":"orderBookL2:XBTUSD","request":{"op":"subscribe","args":["orderBookL2:XBTUSD"]}}
+{"table":"orderBookL2","action":"update","data":[{"symbol":"XBTUSD","id":8799343000,"side":"Buy","size":350544}]}
+             */
+            /*
+            if (marketSymbols == null || marketSymbols.Length == 0)
+            {
+                marketSymbols = GetMarketSymbolsAsync().Sync().ToArray();
+            }
+            return ConnectWebSocket(string.Empty, (_socket, msg) =>
+            {
+                var str = msg.ToStringFromUTF8();
+                JToken token = JToken.Parse(str);
+
+                if (token["table"] == null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var action = token["action"].ToStringInvariant();
+                JArray data = token["data"] as JArray;
+
+                ExchangeOrderBook book = new ExchangeOrderBook();
+                var price = 0m;
+                var size = 0m;
+                foreach (var d in data)
+                {
+                    var marketSymbol = d["symbol"].ToStringInvariant();
+                    var id = d["id"].ConvertInvariant<long>();
+                    if (d["price"] == null)
+                    {
+                        if (!dict_long_decimal.TryGetValue(id, out price))
+                        {
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        price = d["price"].ConvertInvariant<decimal>();
+                        dict_long_decimal[id] = price;
+                        dict_decimal_long[price] = id;
+                    }
+
+                    var side = d["side"].ToStringInvariant();
+
+                    if (d["size"] == null)
+                    {
+                        size = 0m;
+                    }
+                    else
+                    {
+                        size = d["size"].ConvertInvariant<decimal>();
+                    }
+
+                    var depth = new ExchangeOrderPrice { Price = price, Amount = size };
+
+                    if (side.EqualsWithOption("Buy"))
+                    {
+                        book.Bids[depth.Price] = depth;
+                    }
+                    else
+                    {
+                        book.Asks[depth.Price] = depth;
+                    }
+                    book.MarketSymbol = marketSymbol;
+                }
+
+                if (!string.IsNullOrEmpty(book.MarketSymbol))
+                {
+                    callback(book);
+                }
+                return Task.CompletedTask;
+            }, async (_socket) =>
+            {
+                if (marketSymbols.Length == 0)
+                {
+                    marketSymbols = (await GetMarketSymbolsAsync()).ToArray();
+                }
+                await _socket.SendMessageAsync(new { op = "subscribe", args = marketSymbols.Select(s => "orderBookL2:" + this.NormalizeMarketSymbol(s)).ToArray() });
+            });
+            */
         }
 
         private ExchangeTrade ParseTradeWebSocket(JToken token)

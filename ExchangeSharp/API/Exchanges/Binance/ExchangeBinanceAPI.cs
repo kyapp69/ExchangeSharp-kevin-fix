@@ -324,6 +324,12 @@ namespace ExchangeSharp
                 }
                 callback(book);
                 return Task.CompletedTask;
+            }, async (_socket) =>
+            {
+                Console.WriteLine("Socket connected binance");
+            }, async (_socket) =>
+            {
+                Console.WriteLine("Socket disconnected binance unimplmented");
             });
         }
 

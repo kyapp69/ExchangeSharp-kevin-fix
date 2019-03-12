@@ -369,6 +369,9 @@ namespace ExchangeSharp
                 var chan = new Channel { Name = ChannelType.Level2, ProductIds = marketSymbols.ToList() };
                 var channelAction = new ChannelAction { Type = ActionType.Subscribe, Channels = new List<Channel> { chan } };
                 await _socket.SendMessageAsync(channelAction);
+            }, async (_socket) =>
+            {
+                Console.WriteLine("Socket disconnected coinbase unimplmented");
             });
         }
 

@@ -255,7 +255,7 @@ namespace ExchangeSharp
                 foreach (var t in data)
                 {
                     var marketSymbol = t["symbol"].ToStringInvariant();
-                    callback(new KeyValuePair<string, ExchangeTrade>(marketSymbol, t.ParseTrade("size", "price", "size", "timestamp", TimestampType.Iso8601, "trdMatchID")));
+                    callback(new KeyValuePair<string, ExchangeTrade>(marketSymbol, t.ParseTrade("size", "price", "side", "timestamp", TimestampType.Iso8601, "trdMatchID")));
                 }
                 return Task.CompletedTask;
             }, async (_socket) =>
@@ -353,6 +353,9 @@ namespace ExchangeSharp
                     marketSymbols = (await GetMarketSymbolsAsync()).ToArray();
                 }
                 await _socket.SendMessageAsync(new { op = "subscribe", args = marketSymbols.Select(s => "orderBookL2:" + this.NormalizeMarketSymbol(s)).ToArray() });
+            }, async (_socket) =>
+            {
+                Console.WriteLine("Socket disconnected bitmex unimplmented");
             });
         }
 

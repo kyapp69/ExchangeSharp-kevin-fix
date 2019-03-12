@@ -507,6 +507,7 @@ namespace ExchangeSharp
                 {
                     try
                     {
+                        Console.WriteLine("Bittrex websocket trying to reconnect");
                         await StartAsync();
                         connectCallback?.Invoke();
                     }

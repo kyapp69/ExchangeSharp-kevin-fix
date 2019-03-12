@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json.Linq;
@@ -493,7 +494,10 @@ namespace ExchangeSharp
             {
                 try
                 {
-                    trade.Id = (long)token[idKey].ConvertInvariant<ulong>();
+                    if (token.Contains(idKey))
+                    {
+                        trade.Id = (long)token[idKey].ConvertInvariant<ulong>();
+                    }
                 }
                 catch
                 {
