@@ -76,8 +76,8 @@ namespace ExchangeSharp
         {
             Dictionary<string, object> Payload = new Dictionary<string, object>();
             Payload["instrument"] = marketSymbol;
-            JToken token = await MakeJsonRequestAsync<JToken>("/api/v1/public/getorderbook", payload:Payload,requestMethod:"POST");
-            return ExchangeAPIExtensions.ParseOrderBookFromJTokenDictionaries(token, asks: "asks", bids: "bids", amount: "amount", maxCount: maxCount);
+            JToken token = await MakeJsonRequestAsync<JToken>("/api/v2/public/getorderbook", payload:Payload,requestMethod:"POST");
+            return ExchangeAPIExtensions.ParseOrderBookFromJTokenDictionaries(token, asks: "asks", bids: "bids", amount: "amount", sequence: "tstamp", maxCount: maxCount);
         }
         public override async Task<ExchangeOrderBook> GetOrderBookAsync(string marketSymbol, int maxCount = 100)
         {
@@ -127,6 +127,7 @@ namespace ExchangeSharp
 
                     var book = new ExchangeOrderBook();
                     book.MarketSymbol = Data["instrument_name"].ToStringInvariant();
+                    book.SequenceId = Data["timestamp"].ConvertInvariant<long>();
                     JArray bids = (JArray) Data["bids"];
                     JArray asks = (JArray) Data["asks"];
                     int new_bids = 0;
