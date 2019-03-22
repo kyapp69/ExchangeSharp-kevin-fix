@@ -383,6 +383,41 @@ namespace ExchangeSharp
             return book;
         }
 
+        internal static ExchangeOrderBook ParseOrderBookFromJTokenArrayDictionaries
+        (
+            this JToken token,
+            string asks = "asks",
+            string bids = "bids",
+            int price = 0,
+            int amount = 0,
+            string sequence = "ts",
+            int maxCount = 100
+        )
+        {
+            var book = new ExchangeOrderBook { SequenceId = token[sequence].ConvertInvariant<long>() };
+            foreach (JToken ask in token[asks])
+            {
+                var depth = new ExchangeOrderPrice { Price = ask[price].ConvertInvariant<decimal>(), Amount = ask[amount].ConvertInvariant<decimal>() };
+                book.Asks[depth.Price] = depth;
+                if (book.Asks.Count == maxCount)
+                {
+                    break;
+                }
+            }
+
+            foreach (JToken bid in token[bids])
+            {
+                var depth = new ExchangeOrderPrice { Price = bid[price].ConvertInvariant<decimal>(), Amount = bid[amount].ConvertInvariant<decimal>() };
+                book.Bids[depth.Price] = depth;
+                if (book.Bids.Count == maxCount)
+                {
+                    break;
+                }
+            }
+
+            return book;
+        }
+
         /// <summary>
         /// Parse a JToken into a ticker
         /// </summary>

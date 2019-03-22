@@ -75,9 +75,15 @@ namespace ExchangeSharp
         protected override async Task<ExchangeOrderBook> OnGetOrderBookAsync(string marketSymbol, int maxCount = 100)
         {
             Dictionary<string, object> Payload = new Dictionary<string, object>();
-            Payload["instrument"] = marketSymbol;
-            JToken token = await MakeJsonRequestAsync<JToken>("/api/v2/public/getorderbook", payload:Payload,requestMethod:"POST");
-            return ExchangeAPIExtensions.ParseOrderBookFromJTokenDictionaries(token, asks: "asks", bids: "bids", amount: "amount", sequence: "tstamp", maxCount: maxCount);
+            Payload["jsonrpc"] = "2.0";
+            Payload["id"] = WebsocketId++;
+            Payload["method"] = "public/get_order_book";
+            Dictionary<string, object> Params = new Dictionary<string, object>();
+            Payload["params"] = Params;
+            Params["instrument_name"] = marketSymbol;
+            Params["depth"] = 50;
+            JToken token = await MakeJsonRequestAsync<JToken>("/api/v2", payload:Payload,requestMethod:"POST");
+            return ExchangeAPIExtensions.ParseOrderBookFromJTokenArrayDictionaries(token, asks: "asks", bids: "bids", price: 0, amount:1, sequence: "change_id", maxCount: maxCount);
         }
         public override async Task<ExchangeOrderBook> GetOrderBookAsync(string marketSymbol, int maxCount = 100)
         {
@@ -127,7 +133,7 @@ namespace ExchangeSharp
 
                     var book = new ExchangeOrderBook();
                     book.MarketSymbol = Data["instrument_name"].ToStringInvariant();
-                    book.SequenceId = Data["timestamp"].ConvertInvariant<long>();
+                    book.SequenceId = Data["change_id"].ConvertInvariant<long>();
                     JArray bids = (JArray) Data["bids"];
                     JArray asks = (JArray) Data["asks"];
                     int new_bids = 0;
