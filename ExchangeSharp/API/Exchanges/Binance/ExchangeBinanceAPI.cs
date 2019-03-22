@@ -326,10 +326,16 @@ namespace ExchangeSharp
                 return Task.CompletedTask;
             }, async (_socket) =>
             {
-                Console.WriteLine("Socket connected binance");
+               await Task.Run(() =>
+               {
+                   Console.WriteLine("Socket connected deribit"); 
+               });
             }, async (_socket) =>
             {
-                Console.WriteLine("Socket disconnected binance unimplmented");
+                await Task.Run(() =>
+                {
+                    Console.WriteLine("Socket disconnected deribit unimplmented");
+                });
             });
         }
 

@@ -147,6 +147,10 @@ namespace ExchangeSharpConsole
                 {
                     RunGetCandles(argsDictionary);
                 }
+                else if(argsDictionary.ContainsKey("orderbook"))
+                {
+                    RunGetOrderbook(argsDictionary);
+                }
                 else
                 {
                     Logger.Error("Unrecognized command line arguments.");

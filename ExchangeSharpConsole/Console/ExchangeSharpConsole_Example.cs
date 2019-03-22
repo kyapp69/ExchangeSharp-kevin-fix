@@ -316,5 +316,37 @@ namespace ExchangeSharpConsole
                 }
             }
         }
+
+        public static void RunGetOrderbook(Dictionary<string, string> dict)
+        {
+            RequireArgs(dict, "exchangeName", "marketSymbol");
+            using (var api = ExchangeAPI.GetExchangeAPI(dict["exchangeName"]))
+            {
+                if (api == null)
+                {
+                    throw new ArgumentException("Cannot find exchange with name {0}", dict["exchangeName"]);
+                }
+
+                try
+                {
+                    var marketSymbol = dict["marketSymbol"];
+                    ExchangeOrderBook exchangeOrderBook = api.GetOrderBookAsync(marketSymbol).Sync();
+
+                    int count = exchangeOrderBook.Bids.Count;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var topBid = exchangeOrderBook.Bids.ElementAt(i);
+                        var topAsk = exchangeOrderBook.Asks.ElementAt(i);
+                        Console.WriteLine($"{topBid.Value.Price} ({topBid.Value.Amount}) | {topAsk.Value.Price} ({topAsk.Value.Amount})");
+                    }
+                    Console.WriteLine("Press any key to quit.");
+                    Console.ReadKey();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex);
+                }
+            }
+        }
     }
 }
