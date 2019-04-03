@@ -243,6 +243,17 @@ namespace ExchangeSharp
         }
 
         /// <summary>
+        /// Disconnect the websocket
+        /// </summary>
+        public void Disconnect()
+        {
+            Task.Run(async () =>
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect", cancellationToken);
+            });
+        }
+
+        /// <summary>
         /// Close and dispose of all resources, stops the web socket and shuts it down.
         /// </summary>
         public void Dispose()
@@ -396,7 +407,10 @@ namespace ExchangeSharp
                     // open the socket
                     webSocket.KeepAliveInterval = KeepAlive;
                     wasConnected = false;
+                    Console.WriteLine(DateTime.Now+":Reconnecting to URI");
                     await webSocket.ConnectAsync(Uri, cancellationToken);
+                    //Console.WriteLine("Called");
+                    //Console.WriteLine("Waiting for statechange");
                     while (!disposed && webSocket.State == WebSocketState.Connecting)
                     {
                         await Task.Delay(20);
@@ -405,12 +419,14 @@ namespace ExchangeSharp
                     {
                         continue;
                     }
+                    Console.WriteLine("State has changed all good:"+webSocket.State);
                     wasConnected = true;
 
                     // on connect may make additional calls that must succeed, such as rest calls
                     // for lists, etc.
+                    //Console.WriteLine("Invoking on connected");
                     QueueActionsWithNoExceptions(InvokeConnected);
-
+                    //Console.WriteLine("Done invoke");
                     while (webSocket.State == WebSocketState.Open)
                     {
                         do
@@ -449,6 +465,7 @@ namespace ExchangeSharp
                             stream.SetLength(0);
                         }
                     }
+                    Console.WriteLine("Websocket state has changed");
                 }
                 catch (OperationCanceledException)
                 {
@@ -475,8 +492,11 @@ namespace ExchangeSharp
                 if (!disposed)
                 {
                     // wait 5 seconds before attempting reconnect
+                    //Console.WriteLine("Recreating the webscoket");
                     CreateWebSocket();
-                    await Task.Delay(5000);
+                    Console.WriteLine("Wait for 2.5 secs before attempting to move on");
+                    await Task.Delay(2500);
+                    //Console.WriteLine("Done waiting");
                 }
             }
         }
@@ -484,15 +504,23 @@ namespace ExchangeSharp
         private async Task MessageTask()
         {
             DateTime lastCheck = CryptoUtility.UtcNow;
-
+            DateTime Experiment = CryptoUtility.UtcNow;
+            bool DoExperiment = false;
             while (!disposed)
             {
                 if (messageQueue.TryTake(out object message, 100))
                 {
+                    //Console.WriteLine("Doing message loop");
                     try
                     {
+                        if (message != null)
+                        {
+                            lastCheck = CryptoUtility.UtcNow;
+                        }
+
                         if (message is Func<Task> action)
                         {
+                            Console.WriteLine("Doing Queued Action");
                             await action();
                         }
                         else if (message is byte[] messageBytes)
@@ -523,6 +551,35 @@ namespace ExchangeSharp
                         Logger.Info(ex.ToString());
                     }
                 }
+#if true
+                TimeSpan LastMessage = CryptoUtility.UtcNow - lastCheck;
+                if (LastMessage > webSocket.KeepAliveInterval)
+                {
+                    Console.WriteLine("Auto disconnect due to keep alive problem");
+                    // no message has come in
+                    // we should disconnect and let it reconnect again
+                    Task.Run(async () =>
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect",
+                            cancellationToken);
+                    }).Sync();
+                }
+                else if (DoExperiment)
+                {
+                    TimeSpan ts = new TimeSpan(0,5,0);
+                    if ((CryptoUtility.UtcNow - Experiment) > ts)
+                    {
+                        Console.WriteLine("Doing the experiment");
+                        Task.Run(async () =>
+                        {
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect",
+                                cancellationToken);
+                        });
+                        Experiment = CryptoUtility.UtcNow;
+                    }
+                    //Console.WriteLine("Last Message Interval:"+LastMessage.TotalMilliseconds);
+                }
+#else
                 if (ConnectInterval.Ticks > 0 && (CryptoUtility.UtcNow - lastCheck) >= ConnectInterval)
                 {
                     lastCheck = CryptoUtility.UtcNow;
@@ -530,7 +587,9 @@ namespace ExchangeSharp
                     // this must succeed, the callback may be requests lists or other resources that must not fail
                     QueueActionsWithNoExceptions(InvokeConnected);
                 }
+#endif
             }
+            Console.WriteLine("Message loop exiting");
         }
     }
 

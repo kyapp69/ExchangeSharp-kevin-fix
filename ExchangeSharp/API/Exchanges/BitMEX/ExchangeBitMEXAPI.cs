@@ -33,6 +33,17 @@ namespace ExchangeSharp
         private SortedDictionary<long, decimal> dict_long_decimal = new SortedDictionary<long, decimal>();
         private SortedDictionary<decimal, long> dict_decimal_long = new SortedDictionary<decimal, long>();
 
+        private bool WaitingForFullOrderbook = true;
+
+        private int _OBAlgo = 0;
+
+        public int SetOrderbookAlgo
+        {
+            get { return _OBAlgo; }
+            set { _OBAlgo = value; }
+
+        }
+
         public ExchangeBitMEXAPI()
         {
             RequestWindow = TimeSpan.Zero;
@@ -294,6 +305,17 @@ namespace ExchangeSharp
                 }
 
                 var action = token["action"].ToStringInvariant();
+                if (action == "partial" && WaitingForFullOrderbook)
+                {
+                    Console.WriteLine("Action(Partial Action):"+action);
+                    WaitingForFullOrderbook = false;
+                }
+
+                if (WaitingForFullOrderbook)
+                {
+                    Console.WriteLine("Still waiting for partial orderbook:Ignoring Action:"+action);
+                    return Task.CompletedTask;
+                }
                 JArray data = token["data"] as JArray;
 
                 ExchangeOrderBook book = new ExchangeOrderBook();
@@ -348,14 +370,24 @@ namespace ExchangeSharp
                 return Task.CompletedTask;
             }, async (_socket) =>
             {
+                Console.WriteLine("Socket connected BitMEX");
                 if (marketSymbols.Length == 0)
                 {
                     marketSymbols = (await GetMarketSymbolsAsync()).ToArray();
                 }
+                WaitingForFullOrderbook = true;
+                Console.WriteLine("unsubscribing orderbook");
+                _socket.SendMessageAsync(new { op = "unsubscribe", args = marketSymbols.Select(s => "orderBookL2:" + this.NormalizeMarketSymbol(s)).ToArray() }).Sync();
+                Console.WriteLine("subscribing orderbook");
                 await _socket.SendMessageAsync(new { op = "subscribe", args = marketSymbols.Select(s => "orderBookL2:" + this.NormalizeMarketSymbol(s)).ToArray() });
+                Console.WriteLine("Done subscribing");
             }, async (_socket) =>
             {
-                Console.WriteLine("Socket disconnected bitmex unimplmented");
+                WaitingForFullOrderbook = true;
+                await Task.Run(() =>
+                {
+                    Console.WriteLine("Socket disconnected BitMEX unimplmented");
+                });
             });
         }
 

@@ -206,6 +206,7 @@ namespace ExchangeSharp
                 return Task.CompletedTask;
             }, async (_socket) =>
             {
+                Console.WriteLine("Socket connected Deribit");
                 // do the subscription over here
                 // we should create a json message
                 Dictionary<string, object> Request = new Dictionary<string, object>();
@@ -234,7 +235,10 @@ namespace ExchangeSharp
                 await _socket.SendMessageAsync(Request);
             }, async (_socket) =>
                 {
-                    await Task.Run(() => { Console.WriteLine("Socket disconnected deribit unimplmented"); });
+                    await Task.Run(() =>
+                    {
+                        Console.WriteLine("Socket disconnected deribit unimplmented");
+                    });
                 });
         }
 

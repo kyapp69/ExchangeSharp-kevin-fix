@@ -328,19 +328,20 @@ namespace ExchangeSharp
             {
                await Task.Run(() =>
                {
-                   Console.WriteLine("Socket connected deribit"); 
+                   Console.WriteLine("Socket connected binance"); 
                });
             }, async (_socket) =>
             {
                 await Task.Run(() =>
                 {
-                    Console.WriteLine("Socket disconnected deribit unimplmented");
+                    Console.WriteLine("Socket disconnected binance unimplmented");
                 });
             });
         }
 
-        protected override async Task<ExchangeOrderBook> OnGetOrderBookAsync(string marketSymbol, int maxCount = 100)
+        protected override async Task<ExchangeOrderBook> OnGetOrderBookAsync(string marketSymbol, int maxCount = 1000)
         {
+            maxCount = 1000;
             JToken obj = await MakeJsonRequestAsync<JToken>("/depth?symbol=" + marketSymbol + "&limit=" + maxCount);
             return ExchangeAPIExtensions.ParseOrderBookFromJTokenArrays(obj, sequence: "lastUpdateId", maxCount: maxCount);
         }

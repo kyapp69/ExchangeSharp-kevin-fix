@@ -110,9 +110,12 @@ namespace ExchangeSharp
                         // request the entire order book if we need it
                         if (requestFullOrderBook)
                         {
+                            Console.WriteLine(api +":Orderbook Websocket requesting fullbook");
+
                             fullOrderBook = await api.GetOrderBookAsync(newOrderBook.MarketSymbol, maxCount);
                             fullOrderBook.MarketSymbol = newOrderBook.MarketSymbol;
                             fullBooks[newOrderBook.MarketSymbol] = fullOrderBook;
+                            Console.WriteLine(api +":Full orderbook requested");
                         }
                         else if (!foundFullBook)
                         {
@@ -131,6 +134,7 @@ namespace ExchangeSharp
 
                         if (partialOrderBookQueue != null)
                         {
+                            
                             // lock the individual queue for processing, fifo queue
                             lock (partialOrderBookQueue)
                             {
@@ -148,13 +152,21 @@ namespace ExchangeSharp
                         // Subsequent updates will be deltas, at least some exchanges have their heads on straight
                         if (!foundFullBook)
                         {
+                            Console.WriteLine("Orderbook not found:(Bids):"+ newOrderBook.Bids.Count+":(Asks):"+newOrderBook.Asks.Count);
                             fullBooks[newOrderBook.MarketSymbol] = fullOrderBook = newOrderBook;
                         }
                         else
                         {
+                            long beforebids = fullOrderBook.Bids.Count;
+                            long beforeasks = fullOrderBook.Asks.Count;
                             updateOrderBook(fullOrderBook, newOrderBook);
+                            if (fullOrderBook.Asks.Count <= 10 || fullOrderBook.Bids.Count <= 10)
+                            {
+                                Console.WriteLine("WTF:" + api + ":Orderbook problem:");
+
+                            }
                         }
-                    } break;
+                        } break;
 
                     case WebSocketOrderBookType.FullBookAlways:
                     {
@@ -164,6 +176,10 @@ namespace ExchangeSharp
                 }
 
                 fullOrderBook.LastUpdatedUtc = CryptoUtility.UtcNow;
+                if (fullOrderBook.Asks.Count <= 10 || fullOrderBook.Bids.Count <= 10)
+                {
+                    Console.WriteLine("WTF:"+api+":Orderbook problem");
+                }
                 callback(fullOrderBook);
             }
 
@@ -175,17 +191,21 @@ namespace ExchangeSharp
                 }
                 catch
                 {
+                    Console.WriteLine("Get orderbook book websocket exception:");
                 }
             }, maxCount, symbols);
             socket.Connected += (s) =>
             {
+                Console.WriteLine(api+":Orderbook Websocket reconnecting");
                 // when we re-connect, we must invalidate the order books, who knows how long we were disconnected
                 //  and how out of date the order books are
+                Console.WriteLine(api + ":Clearing orderbooks");
                 fullBooks.Clear();
                 lock (partialOrderBookQueues)
                 {
                     partialOrderBookQueues.Clear();
                 }
+                Console.WriteLine(api+":All books cleared");
                 return Task.CompletedTask;
             };
             return socket;
