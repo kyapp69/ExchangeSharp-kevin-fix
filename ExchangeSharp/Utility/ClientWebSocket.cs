@@ -520,8 +520,9 @@ namespace ExchangeSharp
 
                         if (message is Func<Task> action)
                         {
-                            Console.WriteLine("Doing Queued Action");
+                            //Console.WriteLine("Doing Queued Action");
                             await action();
+                            //Console.WriteLine("Queued Action Done");
                         }
                         else if (message is byte[] messageBytes)
                         {
@@ -553,7 +554,7 @@ namespace ExchangeSharp
                 }
 #if true
                 TimeSpan LastMessage = CryptoUtility.UtcNow - lastCheck;
-                if (LastMessage > webSocket.KeepAliveInterval)
+                if ((LastMessage > webSocket.KeepAliveInterval) && false)
                 {
                     Console.WriteLine("Auto disconnect due to keep alive problem");
                     // no message has come in
