@@ -160,7 +160,13 @@ namespace ExchangeSharpConsole
                    //print the top bid and ask with amount
                    var topBid = message.Bids.FirstOrDefault();
                    var topAsk = message.Asks.FirstOrDefault();
-                   Console.WriteLine(DateTime.Now+":"+$"[{message.MarketSymbol}:{message.SequenceId}] {topBid.Value.Price} ({topBid.Value.Amount}) | {topAsk.Value.Price} ({topAsk.Value.Amount})  || ({message.Bids.Count}) | ({message.Asks.Count})");
+                   DateTime time = DateTime.Now;
+                    for (int i = 4; i >= 0; i--)
+                    {
+                        //--
+                        Console.WriteLine(time + ":[" + i + $"][{message.MarketSymbol}:{message.SequenceId}] {message.Bids.ElementAt(i).Value.Price} ({message.Bids.ElementAt(i).Value.Amount}) | {message.Asks.ElementAt(i).Value.Price} ({message.Asks.ElementAt(i).Value.Amount})  || ({message.Bids.Count}) | ({message.Asks.Count})");
+                    }
+                    Console.WriteLine(DateTime.Now+":"+$"[{message.MarketSymbol}:{message.SequenceId}] {topBid.Value.Price} ({topBid.Value.Amount}) | {topAsk.Value.Price} ({topAsk.Value.Amount})  || ({message.Bids.Count}) | ({message.Asks.Count})");
                 }, maxCount:100, symbols: symbols);
             });
         }
