@@ -208,6 +208,18 @@ namespace ExchangeSharp
                 Console.WriteLine(api+":All books cleared");
                 return Task.CompletedTask;
             };
+            socket.Disconnected += (s) =>
+            {
+                Console.WriteLine(api + ":Orderbook Websocket disconnected");
+                Console.WriteLine(api + ":Clearing orderbooks");
+                fullBooks.Clear();
+                lock (partialOrderBookQueues)
+                {
+                    partialOrderBookQueues.Clear();
+                }
+                Console.WriteLine(api + ":All books cleared");
+                return Task.CompletedTask;
+            };
             return socket;
         }
 
